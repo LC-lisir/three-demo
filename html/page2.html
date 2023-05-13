@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+
+<head>
+  <meta charset="UTF-8">
+  <!-- import CSS -->
+  <link rel="stylesheet" href="../css/element/element.css">
+</head>
+
+<body>
+  <div id="app">
+    <div id="nave">
+      <!-- <span style="position: absolute;padding-top: 13px;right: 45%;font-size: 20px;" @click="showReceiverInfo"><el-link href="javascript:void(0);" type="info" style="font-size: 20px;">{{receiveUser}}</el-link></span> -->
+      <!-- <span style="position: absolute;padding-top: 16px;right: 8%;font-size: 16px;font-weight: bold;">当前用户：</span>
+      <span
+        style="position: absolute;padding-top: 16px;right: 4%;font-size: 16px;font-weight: bold;">{{sendUser}}</span> -->
+      <input id="username" th:value="${username}" style="display: none;" /><!--隐藏域-->
+
+    </div>
+    <!-- 左侧用户列表区域 -->
+    <div id="side">
+      <el-menu style="height: 95%" :default-active="active" class="el-menu-vertical-demo" background-color="#304156"
+        text-color="gray" active-text-color="white">
+        <el-menu-item-group v-for="(user, index) in userList">
+          <el-menu-item :key="user.id" :index="user.id"
+            :class="{'user-item': true, 'selected': selectedUserId === user.id}"
+            @click="selectUser(user.id,user.username)">
+            {{ user.username }}
+          </el-menu-item>
+        </el-menu-item-group>
+      </el-menu>
+    </div>
+    <div id="chat">
+      <div id="receive" style="text-align: left;">
+        <!-- 顶部显示当前时间 -->
+        <el-divider content-position="center">{{time}}</el-divider>
+        <table style="height: 100%;width: 99%;">
+          <ul>
+            <li v-for="(message, index) in messageList" :key="index">
+              <!-- <img :src="message.sender.avatar" alt="sender-avatar" /> -->
+              <div class="message-content">
+                <!-- 后端往前端传值时在message中增加一个sender的User对象，不与数据库相关联 -->
+                <!-- <p class="sender">{{ message.sender.username }}</p> -->
+                <p class="sender">{{ message.username }}</p>
+                <p class="content">{{ message.content }}</p>
+                <!-- <p class="time">{{ message.sendTime }}</p> -->
+              </div>
+            </li>
+          </ul>
+        </table>
+
+      </div>
+
+      <div id="send" class="chat-box">
+        <el-input type="textarea" :rows="7" placeholder="请输入消息" v-model="message" clearable
+          @keyup.enter="send"></el-input>
+        <el-button type="primary" @click="send">发送</el-button>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+<!-- import Vue before Element -->
+<script src="../js/vue/vue.js"></script>
+<!-- import JavaScript -->
+<script src="../js/element/element.js"></script>
+<script type="text/javascript" src="../js/axios/axios-0.21.0.js"></script>
+
+
+<script>
+  new Vue({
+    el: '#app',
+    data: function () {
+      return {
+        // 用户列表
+        userList: [],
+        // 消息列表
+        messageList: [],
+        // WebSocket连接
+        vm: null,
+        // 发送的消息
+        message: '',
+        // 消息接收人的ID
+        selectedUserId: null,
+        // 消息接收人的姓名
+        selectedUserName: 'admin',
+        // token
+        token: '',
+        // 发送人
+        sendUser: '',
+        // 当前时间
+        time: '',
+        // 进入页面默认不打开与任何用户的对话
+        active: '0',
+      }
+    },
+    mounted() {
+      //初始化send用户名
+      this.sendUser = document.getElementById("username").value
+      //当前时间
+      this.time = new Date().toLocaleString()
+      var self = this
+      this.init('ws://localhost:8077/ws')
+      if (this.vm && this.vm.readyState === 1) {
+        this.vm.onmessage = evt => {
+          this.messages.push(evt.data)
+        }
+      }
+    },
+    created() {
+      this.token = localStorage.getItem('token');
+      this.getList();
+      this.getUserName();
+    },
+    methods: {
+      addMessage(username, content, sendTime) {
+        this.messageList.push({ username, content, sendTime });
+      },
+      // 启动websocket
+      init(url) {
+        this.vm = new WebSocket(url)
+        this.vm.onopen = () => {
+          console.log('WebSocket连接已打开')
+          // 发送用户信息
+          const messageObj = {
+            login: localStorage.getItem('username'),
+          };
+          console.log("发送前的检查：", messageObj)
+          this.vm.send(JSON.stringify(messageObj));
+        }
+        this.vm.onmessage = evt => {
+          console.log('收到消息:' + evt.data)
+          this.addMessage(this.sendUser, evt.data, this.time)
+        }
+        this.vm.onclose = () => console.log('WebSocket连接已关闭')
+        this.vm.onerror = evt => console.log('WebSocket连接出错:' + evt.data)
+      },
+      send() {
+        // 封装消息为 JSON 对象
+        const messageObj = {
+          content: this.message,
+          sender: this.sendUser,
+          receiver: this.selectedUserName
+        };
+        // 将 JSON 对象转换成字符串，并发送给服务器
+        this.vm.send(JSON.stringify(messageObj));
+        // 清空输入框
+        this.message = '';
+      },
+      /** 查询用户管理列表 */
+      getList() {
+        axios.get(`http://localhost:8085/user/list`, {
+          // 在请求头中添加token
+          headers: {
+            Authorization: `${this.token}`
+          },
+          withCredentials: true,
+          params: this.queryParams
+        })
+          .then(res => {
+            this.userList = res.data.data
+            this.loading = false;
+          })
+          .catch(() => alert('加载用户列表失败'))
+      },
+      /** 获取当前登陆用户名 */
+      getUserName() {
+        axios.get(`http://localhost:8085/user/getUserName`, {
+          // 在请求头中添加token
+          headers: {
+            Authorization: `${this.token}`
+          },
+          withCredentials: true,
+          params: this.queryParams
+        })
+          .then(res => {
+            this.sendUser = res.data.data
+          })
+          .catch(() => alert('加载当前用户失败'))
+      },
+      selectUser(userId, username) {
+        this.selectedUserId = userId;
+        this.selectedUserName = username;
+        // 清空消息列表
+        this.messageList = []
+        // 读取消息
+        axios.get('http://localhost:8085/message/' + this.selectedUserId, {
+          // 在请求头中添加token
+          headers: {
+            Authorization: `${this.token}`
+          },
+          withCredentials: true,
+          params: this.queryParams
+        })
+          .then(res => {
+            this.messageList = res.data
+          })
+          .catch(() => alert('加载历史消息列表失败'))
+      },
+    }
+  })
+</script>
+<style>
+  #src {
+    position: absolute;
+    top: 0;
+    height: 750px;
+    width: 750px;
+    left: 26%;
+  }
+
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+  }
+
+  #app {
+    height: 97%;
+  }
+
+  #nave {
+    height: 7%;
+    background-color: #EEE9E9;
+  }
+
+  #side {
+    float: left;
+    height: 96%;
+    width: 15%;
+    /*border-right: 1px solid gray;*/
+    overflow: auto;
+  }
+
+  #chat {
+    float: right;
+    height: 93%;
+    width: 84.7%;
+  }
+
+  #receive {
+    height: 71%;
+    overflow: auto;
+  }
+
+  #send {
+    height: 28.9%;
+    overflow: auto;
+  }
+
+  table tr {
+    display: inline-block;
+    width: 99%;
+    height: auto;
+    margin: 5px;
+  }
+
+  td {
+    padding: 6px;
+    font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+    font-size: 17px;
+    color: #c3790d;
+    background-color: lightyellow;
+    border: 2px solid #ED8D01;
+    border-radius: 6px;
+    box-shadow: 0 2px 12px 0 gray;
+  }
+
+  .receive {
+    color: black;
+    background-color: #e5e5e5;
+    border: none;
+    box-shadow: 0 2px 12px 0 gray;
+  }
+
+  .dialog {
+    height: 150px;
+  }
+
+  .dialogLeft {
+    float: left;
+  }
+
+  .el-menu-item.is-active {
+    color: white;
+    background-color: #1890ff !important;
+  }
+
+  .el-menu-item:hover {
+    color: white;
+    background-color: #1890ff !important;
+  }
+
+  .dialogRight {
+    float: right;
+    margin-right: 20px;
+  }
+
+  .dialogRight div {
+    margin-bottom: 30px;
+  }
+</style>
+
+</html>

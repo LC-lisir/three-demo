@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>主页</title>
+  <script type="text/javascript" src="../js/axios/axios-0.21.0.js"></script>
+  <script type="text/javascript" src="../js/jquery/jquery-1.12.4.min.js"></script>
+  <script type="text/javascript" type="module" src="../js/util/com-trans.js"></script>
+
+  <!--#include virtual="/html/head.html"-->
+  <!-- 重置样式 -->
+  <link rel="stylesheet" href="../css/reset.css">
+  <!--#include virtual="/html/head.html"-->
+  <!-- vue -->
+  <script src="../js/vue/vue.js"></script>
+  <!-- 引入样式 -->
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <!-- 引入组件库 -->
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <!-- axios -->
+  <!-- util -->
+  <script src="../js/head.js"></script>
+  <script src="../form/css.worker.js"></script>
+
+</head>
+
+<body>
+  <div id="app">
+    <div class="top">
+      <img class="logo" style="vertical-align: middle;" src="../img/logo1.png" width="40" height="40" />
+      <!-- <span style="text-align: center;color:rgb(255, 255, 255);padding-left: 10px; font-size: 18pt;font-weight: bold" slot="title">系统管理中心</span> -->
+      <h1>系统管理中心</h1>
+      <i id="headericon" :class="headericon " @click="headericons()"></i>
+      <h2>{{dateFormat(date)}}</h2>
+
+      <div class="top_right">
+        <i class="el-icon-full-screen" @click="dofull()"></i>
+        <el-dropdown @command="command">
+          <span class="el-dropdown-link">
+            管理员 <i class="el-icon-caret-bottom"></i>
+          </span>
+          <el-dropdown-menu slot="dropdown">
+            <el-dropdown-item style="font-weight:bold;" icon="el-icon-key" command="1">修改密码</el-dropdown-item>
+            <el-dropdown-item style="font-weight:bold;" icon="el-icon-s-check" command="2">基本信息</el-dropdown-item>
+            <el-dropdown-item style="font-weight:bold;" icon="el-icon-refrigerator" divided
+              command="3">退出</el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
+      </div>
+
+    </div>
+    <el-container>
+
+      <el-aside width=auto>
+
+        <el-menu class="el-menu-vertical-demo" :collapse="isopen" text-color="white" background-color="#484848"
+          :default-active="active" direction="vertical">
+          <!-- <el-row :gutter="10">
+            <el-col :xs="6" :sm="6" :md="6" :lg="6" :xl="6">
+              
+              <div style="height: 80px;line-height: 80px; padding-left:10px;text-align: center;position: relative;">
+               
+                
+              </div>
+            </el-col>
+            <el-col :xs="18" :sm="18" :md="18" :lg="18" :xl="18">
+
+                
+                
+            </el-col>
+          </el-row> -->
+          <el-submenu :index="val.url" :key="index" v-for="(val,index) in menus"
+            v-if="val.pid =='00' && val.children.length >0">
+            <template slot="title">
+              <i :class="val.icon"></i>
+              <span slot="title">{{val.title}}</span>
+            </template>
+            <!-- <el-menu-item-group v-for="(v,i) in val.children">
+                      <el-menu-item @click="toClick(v.title,v.path,v.menuId)" :index="v.id">
+                        <i :class="v.icon"></i>
+                        <span slot="title">{{v.title}}</span>
+                      </el-menu-item>
+                    </el-menu-item-group> -->
+          </el-submenu>
+
+          <el-menu-item @click="toClick(val.title,val.path,val.menuId)" v-else :index="val.menuId">
+            <i :class="val.icon"></i>
+            <span slot="title" style="font-weight:initial">{{val.title}}</span>
+          </el-menu-item>
+
+        </el-menu>
+      </el-aside>
+
+      <el-container>
+        <el-header style="vertical-align: middle">
+
+          <div style="float:right">
+            <span id="divDay" style="padding-right: 50px; color: #00afff;font-size: 15px;"></span>
+            <!-- <img style="border-radius: 50%;vertical-align: middle;" src="../img/girl.png" width="40" height="40" /> -->
+
+          </div>
+        </el-header>
+        <el-main style="padding-left: 3px;padding-right: 3px;background-color: #f6f6f6">
+          <el-tabs v-model="tabindex" type="card" editable @tab-remove="removetabs" @tab-click="clicktabs">
+            <el-tab-pane :key="item.name" v-for="(item, index) in tabvals" :label="item.title" :name="item.name">
+              <iframe frameborder="0" :id="'fm'+item.name" :name="'fm'+item.name" :src="item.url"
+                :style="{'height':iframeHeight}" class="iframe" scrolling="none">
+              </iframe>
+            </el-tab-pane>
+          </el-tabs>
+        </el-main>
+      </el-container>
+    </el-container>
+    <div v-show="contextMenuVisible">
+      <ul :style="{left:left+'px',top:top+'px'}" class="contextmenu">
+        <li><el-button icon="el-icon-turn-off" type="text" @click="closeMenu()">关闭菜单</el-button></li>
+        <li><el-button icon="el-icon-refresh" type="text" @click="curTabReload()">重新加载</el-button></li>
+        <li><el-button icon="el-icon-turn-off" type="text" @click="closeContextMenu()">关闭模块</el-button></li>
+        <li><el-button icon="el-icon-turn-off" type="text" @click="closeOtherTabs('left')"
+            :disabled="isDisabledCloseLeftBtnFlag">关闭左边</el-button></li>
+        <li><el-button icon="el-icon-turn-off" type="text" @click="closeOtherTabs('right')"
+            :disabled="isDisabledCloseRightBtnFlag">关闭右边</el-button></li>
+        <li><el-button icon="el-icon-turn-off" type="text" @click="closeOtherTabs('other')">关闭其他</el-button></li>
+        <li><el-button icon="el-icon-turn-off" type="text" @click="closeAllTabs()">关闭所有</el-button></li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    var app = new Vue({
+      el: '#app',
+      data() {
+        return {
+          date: new Date(),
+          isopen: false,
+          left: 0,
+          top: 0,
+          currTabIndex: '-1',
+          contextMenuVisible: false,
+          isDisabledCloseLeftBtnFlag: false,
+          isDisabledCloseRightBtnFlag: false,
+          headericon: 'el-icon-s-fold',
+          active: '',
+          menus: [
+            {
+              "menuId": 1,
+              "component": "Layout",
+              "path": "user.html",
+              "redirect": "/sys/user",
+              "name": "sysManage",
+              "title": "用户管理",
+              "icon": "el-icon-user",
+              "parentId": 0,
+              "isLeaf": "N",
+              "hidden": false,
+              // "children": [
+              //   {
+              //     "menuId": 2,
+              //     "component": "sys/user",
+              //     "path": "user",
+              //     "redirect": null,
+              //     "name": "userList",
+              //     "title": "用户管理",
+              //     "icon": "user",
+              //     "parentId": 1,
+              //     "isLeaf": "Y",
+              //     "hidden": false,
+              //     "meta": {
+              //       "icon": "user",
+              //       "title": "用户管理"
+              //     }
+              //   }
+              // ],
+              "meta": {
+                "icon": "userManage",
+                "title": "系统管理"
+              }
+            },
+            {
+              "menuId": 4,
+              "component": "Layout",
+              "path": "chat.html",
+              "redirect": "/chat/chat",
+              "name": "chat",
+              "title": "消息管理",
+              "icon": "el-icon-phone-outline",
+              "parentId": 0,
+              "isLeaf": "N",
+              "hidden": false,
+              // "children": [
+              //   {
+              //     "menuId": 7,
+              //     "component": "chat/toserve",
+              //     "path": "toserve",
+              //     "redirect": null,
+              //     "name": "toserve",
+              //     "title": "消息管理",
+              //     "icon": "form",
+              //     "parentId": 4,
+              //     "isLeaf": "Y",
+              //     "hidden": false,
+              //     "meta": {
+              //       "icon": "form",
+              //       "title": "消息管理"
+              //     }
+              //   }
+              // ],
+              "meta": {
+                "icon": "form",
+                "title": "功能测试"
+              }
+            },
+            {
+              "menuId": 3,
+              "component": "Layout",
+              "path": "component.html",
+              "redirect": "/chat/chat",
+              "name": "chat",
+              "title": "电铃",
+              "icon": "el-icon-phone-outline",
+              "parentId": 0,
+              "isLeaf": "N",
+              "hidden": false,
+              // "children": [
+              //   {
+              //     "menuId": 7,
+              //     "component": "chat/toserve",
+              //     "path": "toserve",
+              //     "redirect": null,
+              //     "name": "toserve",
+              //     "title": "消息管理",
+              //     "icon": "form",
+              //     "parentId": 4,
+              //     "isLeaf": "Y",
+              //     "hidden": false,
+              //     "meta": {
+              //       "icon": "form",
+              //       "title": "消息管理"
+              //     }
+              //   }
+              // ],
+              "meta": {
+                "icon": "form",
+                "title": "功能测试"
+              }
+            }
+
+
+
+          ],
+          screenHeight: document.documentElement.clientHeight + "px",
+          iframeHeight: document.documentElement.clientHeight - 124 + "px",
+          tabindex: 'home',
+          tabvals: [{ title: '首页', name: 'home', url: 'default.html' }]
+        }
+      },
+      methods: {
+        dateFormat(time) {
+          var date = new Date(time);
+          var year = date.getFullYear();
+          /* 在日期格式中，月份是从0开始的，因此要加0
+          * 使用三元表达式在小于10的前面加0，以达到格式统一  如 09:11:05
+          * */
+          var month = date.getMonth() + 1 < 10 ? "0" + (date.getMonth() + 1) : date.getMonth() + 1;
+          var day = date.getDate() < 10 ? "0" + date.getDate() : date.getDate();
+          var hours = date.getHours() < 10 ? "0" + date.getHours() : date.getHours();
+          var minutes = date.getMinutes() < 10 ? "0" + date.getMinutes() : date.getMinutes();
+          var seconds = date.getSeconds() < 10 ? "0" + date.getSeconds() : date.getSeconds();
+          // 拼接
+          return year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
+        },
+
+        command(index) {
+          switch (index) {
+            case '1':
+              this.toClick('修改密码', 'updateadmin')
+              break;
+            case '2':
+              break;
+            case '3':
+              break
+          }
+        },
+        //侧边栏缩放
+        headericons() {
+          this.isopen == false ? this.isopen = true : this.isopen = false;
+          this.headericon == 'el-icon-s-fold' ? this.headericon = 'el-icon-s-unfold' : this.headericon = 'el-icon-s-fold'
+        },
+        toClick(text, url, mid) {
+          this.active = 'tab' + mid;
+          let isok = this.tabvals.filter(tab => tab.name == this.active);
+          if (isok.length < 1) {
+            this.tabvals.push({ title: text, name: this.active, url: url });
+            this.tabindex = this.active;
+          } else {
+            this.tabindex = isok[0].name;
+          }
+        },
+        dofull() {
+          window.screenfull.toggle(document.documentElement).then();
+        },
+        clicktabs(tab) {
+          this.tabindex = tab.name;
+        },
+        removetabs(tabname) {
+          if (tabname != 'home') {
+            let index = this.tabvals.findIndex(tab => tab.name == tabname);
+            this.tabvals.splice(index, 1)
+            this.tabindex = this.tabvals[index - 1].name
+          }
+        },
+        openContextMenu(e) {
+          e.preventDefault(); //防止默认菜单弹出
+
+          let obj = e.srcElement ? e.srcElement : e.target;
+          if (obj.id) {
+            let currentContextTabId = obj.id.split("-")[1];
+            let curIndex = 0;
+            for (; curIndex < this.tabvals.length; ++curIndex) {
+              if (this.tabvals[curIndex].name == currentContextTabId) {
+                break;
+              }
+            }
+            if (curIndex <= 0) {
+              this.isDisabledCloseLeftBtnFlag = true
+              this.isDisabledCloseRightBtnFlag = false
+            } else if (curIndex >= this.tabvals.length - 1) {
+              this.isDisabledCloseLeftBtnFlag = false
+              this.isDisabledCloseRightBtnFlag = true
+            } else {
+              this.isDisabledCloseLeftBtnFlag = false
+              this.isDisabledCloseRightBtnFlag = false
+            }
+            this.contextMenuVisible = true;
+            this.left = e.clientX;
+            this.top = e.clientY + 10;
+            this.currTabIndex = curIndex;
+          }
+        },
+        closeMenu() {
+          this.contextMenuVisible = false;
+        },
+        closeContextMenu() {
+          if (this.currTabIndex > 0) {
+            this.tabvals.splice(this.currTabIndex, 1);
+            this.tabindex = this.tabvals[this.currTabIndex - 1].name;
+          }
+          this.contextMenuVisible = false;
+        },
+        curTabReload() {
+          let src = this.tabvals[this.currTabIndex].url;
+          this.tabvals[this.currTabIndex].url = '';
+          const that = this;
+          setTimeout(function () {
+            that.tabvals[that.currTabIndex].url = src;
+          }, 100);
+          that.contextMenuVisible = false;
+        },
+        closeAllTabs() {
+          this.tabvals.splice(1, this.tabvals.length - 1);
+          this.tabindex = this.tabvals[0].name;
+          this.contextMenuVisible = false;
+        },
+        closeOtherTabs(par) {
+          if (par == "left") {
+            this.tabvals.splice(1, this.currTabIndex - 1);
+            this.tabindex = this.tabvals[1].name;
+          }
+          if (par == "right") {
+            this.tabvals.splice(this.currTabIndex + 1, this.tabvals.length - this.currTabIndex - 1);
+            this.tabindex = this.tabvals[this.currTabIndex].name;
+          }
+          if (par == "other") {
+            this.tabvals.splice(1, this.currTabIndex - 1);
+            this.tabvals.splice(2, this.tabvals.length - 1);
+            this.tabindex = this.tabvals[1].name;
+          }
+          this.contextMenuVisible = false;
+        }
+      },
+      watch: {
+        contextMenuVisible(value) {
+          if (this.contextMenuVisible) {
+            document.body.addEventListener("click", this.closeMenu);
+          } else {
+            document.body.removeEventListener("click", this.closeMenu);
+          }
+        }
+      },
+      mounted() {
+        //显示当前日期时间
+        let _this = this// 声明一个变量指向Vue实例this，保证作用域一致
+        this.timer = setInterval(() => {
+          _this.date = new Date(); // 修改数据date
+        }, 1000)
+
+
+        console.log(jsTrans)
+        const that = this;
+        window.onresize = function () {
+          that.iframeHeight = document.documentElement.clientHeight - 124 + 'px';
+        }
+        // 获取dom
+        let tab_top_dom = document.body.getElementsByClassName("el-tabs__header is-top")
+        // 使用原生js 为单个dom绑定鼠标右击事件
+        tab_top_dom[0].oncontextmenu = this.openContextMenu
+
+
+
+      },
+      created() {
+        // jsDate.getDayInfo('divDay');
+        let that = this;
+        jsTrans.axiosGet(gRemotePath + "/user/menus", null, function (res) {
+          console.log(res.data);
+          that.menus = res.data;
+        })
+      },
+      beforeDestroy() {
+        if (this.timer) {
+          clearInterval(this.timer); // 在Vue实例销毁前，清除我们的定时器
+        }
+      }
+
+
+    });
+  </script>
+
+  <style>
+    .top {
+      background-color: #0f49cc;
+      height: 60px;
+      position: relative;
+    }
+
+    .top .logo {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-left: 5px;
+    }
+
+    .top h1 {
+      font-size: 20px;
+      color: #ffffff;
+      position: absolute;
+      top: 14px;
+      left: 40px;
+      font-weight: 500;
+
+    }
+
+    .top #headericon{
+      position: absolute;
+      top: 19px;
+      left: 212px;
+      font-size: 25px;
+      cursor: pointer;
+      color: #ffffff;
+      font-weight: 100;
+    }
+
+    .top h2 {
+      font-weight: 10;
+      font-size: 16px;
+      position: absolute;
+      top: 19px;
+      left: 270px;
+      color: #ffffff;
+
+    }
+
+    .top_right {
+      /* background-color: #E4E7ED; */
+      width: 150px;
+      height: 60px;
+      position: absolute;
+      right: 10px;
+    }
+
+    .top_right .el-icon-full-screen{
+      display: block;
+      position: absolute;
+      top: 19px;
+      font-size: 25px;
+      cursor: pointer;
+      color: #ffffff;
+      font-weight: 100;
+
+    }
+    .top_right .el-dropdown{
+      color: #ffffff;
+      width: 80px;
+      /* background-color: #00afff; */
+      position: absolute;
+      right: 10px;
+      top:50%;
+		  transform:translateY(-50%)
+    }
+    
+
+    body {
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    .el-menu {
+      border-right: 0px !important;
+      font-weight: bold;
+    }
+
+    .el-container {
+      border: 0px !important;
+      height: 100vh;
+      background-color: #E4E7ED;
+    }
+
+    .el-main {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100vh;
+
+    }
+
+    .el-menu-vertical-demo:not(.el-menu--collapse) {
+      width: 200px;
+      min-height: 400px;
+    }
+
+    .el-header {
+      background-color: white;
+      color: #333;
+      line-height: 60px;
+      border-bottom: 1px solid #f6f6f6
+    }
+
+    .el-tabs__header {
+      padding: 0;
+      position: relative;
+      margin: 0 0 0px !important;
+      background-color: white;
+    }
+
+    .el-header i {
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .el-aside {
+      color: #333;
+      background-color: white;
+      background-color: #484848;
+      overflow-x: hidden;
+    }
+
+    .el-tabs__new-tab {
+      opacity: 0;
+    }
+
+    .iframe {
+      border: none;
+      width: 100%;
+      background-color: white;
+    }
+
+    .el-avatar {
+      background: white !important;
+    }
+
+    .el-menu-item.is-active {
+      color: white;
+      background-color: #262425 !important;
+    }
+
+    .el-menu-item:hover {
+      color: white;
+      background-color: #262425 !important;
+    }
+
+    .el-submenu [class^=el-icon-] {
+      color: white !important;
+    }
+
+    .el-tab-pane {
+      padding: 10px;
+      height: 100vh;
+    }
+
+    [class*=" el-icon-"],
+    [class^=el-icon-] {
+      color: #ffffff;
+    }
+
+    /* .el-tabs--card>.el-tabs__header .el-tabs__item {}
+
+    .el-tabs--card>.el-tabs__header .el-tabs__item.is-active {
+      border: 1px solid #1890ff;
+
+    } */
+
+    #first:hover {
+
+      background-color: rgb(48, 65, 86) !important;
+    }
+
+    .el-menu-item#first.is-active {
+      color: white;
+      background-color: rgb(48, 65, 86) !important;
+      pointer-events: none;
+    }
+  </style>
+</body>
+
+</html>

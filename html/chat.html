@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="utf-8">
+<head>
+<!-- 重置样式 -->
+  <link rel="stylesheet" href="../css/reset.css">
+    <!--#include virtual="/html/head.html"-->
+<!-- vue -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+<!-- 引入样式 -->
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+<!-- 引入组件库 -->
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<!-- axios -->
+<script type="text/javascript" src="../js/axios/axios-0.21.0.js"></script>
+</head>
+<body>
+<div id="app">
+    <div>
+        <el-row :gutter="20">
+          <el-col :span="12" :offset="6">
+            <div class="main">
+    
+              <el-row>
+                <el-button type="primary" @click="conectWebSocket()">建立连接</el-button>
+                <el-button type="danger">断开连接</el-button>
+              </el-row>
+              <div class="message">
+                <p v-for="(item, index) in messageList" :key="index" class="show">
+                  {{ item }}
+                </p>
+              </div>
+              <el-row>
+                <el-input
+                  placeholder="请输入要发送的消息"
+                  prefix-icon="el-icon-s-promotion"
+                  v-model="messageValue"
+                  @keyup.enter.native = "sendMessage()"
+                  style="width:89%"
+                ></el-input>
+                <el-button type="primary" @click="sendMessage()" style="float: right">发送</el-button>
+              </el-row>
+    
+            </div>
+          </el-col>
+        </el-row>
+      </div>
+    
+     
+</div>
+<script>
+    new Vue({
+        el: '#app',
+        data() {   
+    return {
+        name: "", // 昵称
+      websocket: null, // WebSocket对象
+      aisle: "", // 对方频道号
+      messageList: [], // 消息列表
+      messageValue: "" // 消息内容
+    }
+  },
+  methods: {
+    conectWebSocket: function() {
+        console.log("建立连接");
+            this.websocket = new WebSocket("ws://localhost:8889/ws")
+          //连接发生错误的回调方法
+          this.websocket.onerror = function() {
+
+          };
+          //连接成功建立的回调方法
+          this.websocket.onopen = function() {
+              alert("连接成功！")
+          };
+          //接收到消息的回调方法
+          var that = this;
+          this.websocket.onmessage = function(e) {
+            console.log(e.data)
+            that.messageList.push(e.data);
+            that.messageList.forEach();
+          };
+          //连接关闭的回调方法
+          this.websocket.onclose = function() {};
+          //监听窗口关闭事件，当窗口关闭时，主动去关闭websocket连接，防止连接还没断开就关闭窗口，server端会抛异常。
+          window.onbeforeunload = function() {
+            this.websocket.close();
+          };
+        },
+
+    // 发送消息
+    sendMessage: function() {
+      var socketMsg = this.messageValue ;
+      this.websocket.send(JSON.stringify(socketMsg));
+      this.messageValue="";
+    },
+  
+  }
+
+
+    })
+</script>
+
+<style>
+ .main {
+  position: relative;
+  top: 20px;
+}
+.message {
+  position: relative;
+  overflow:auto;
+  top: 20px;
+  width: 100%;
+  height: 400px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.62), 0 0 10px rgba(0, 0, 0, 0.04);
+  padding: 5px;
+  margin-bottom: 20px;
+}
+ 
+ </style>
+</body>
+
+</html>
